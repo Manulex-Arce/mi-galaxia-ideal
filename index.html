@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Punchis Galaxia Amor</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    body {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #galaxy-canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      touch-action: none;
+    }
+    #te-amo {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 7vw;
+      color: #ff69b4;
+      text-shadow: 0 0 30px #fff, 0 0 10px #ff69b4;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s;
+      z-index: 10;
+      user-select: none;
+    }
+    @media (max-width: 600px) {
+      #te-amo {
+        font-size: 12vw;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="galaxy-canvas"></canvas>
+  <div id="te-amo">TE AMO</div>
+  <script>
+    // Configuración
+    const NUM_LETTERS = 120;
+    const GALAXY_RADIUS = 0.38; // relativo al menor lado
+    const GALAXY_ARMS = 2.5;
+    const GALAXY_SPIRAL = 1.7;
+    const HEART_SIZE = 0.38; // relativo al menor lado
+    const LETTER = 'punchis';
+    const LETTER_COLORS = ['#fff', '#ffb6d5', '#ff69b4', '#ffe4f7'];
+    const HEART_COLOR = '#ff69b4';
+    const FPS = 60;
+
+    // Estado
+    let width, height, minDim, cx, cy;
+    let letters = [];
+    let galaxyAngle = 0;
+    let dragging = false;
+    let lastAngle = 0;
+    let lastPointer = null;
+    let inHeart = false;
+    let animatingToHeart = false;
+    let animatingToGalaxy = false;
+    let animationProgress = 0;
+    let heartPositions = [];
+    let galaxyPositions = [];
+
+    const canvas = document.getElementById('galaxy-canvas');
+    const ctx = canvas.getContext('2d');
+    const teAmoDiv = document.getElementById('te-amo');
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      minDim = Math.min(width, height);
+      cx = width / 2;
+      cy = height / 2;
+      canvas.width = width;
+      canvas.height = height;
+      computeGalaxyPositions();
+      computeHeartPositions();
+      initLetters();
+      updateLetterPositions();
+    }
+
+    function computeGalaxyPositions() {
+      galaxyPositions = [];
+      const flatten = 0.45;
+      const inclination = Math.PI / 5;
+      for (let i = 0; i < NUM_LETTERS; i++) {
+        const t = i / NUM_LETTERS;
+        const angle = t * Math.PI * 2 * GALAXY_ARMS + t * GALAXY_SPIRAL * Math.PI * 2;
+        const radius = t * GALAXY_RADIUS * minDim;
+        let x = Math.cos(angle + galaxyAngle) * radius;
+        let y = Math.sin(angle + galaxyAngle) * radius;
+        y *= flatten;
+        let y3d = y * Math.cos(inclination);
+        galaxyPositions.push({
+          x: x,
+          y: y3d,
+          angle: angle + Math.PI/2
+        });
+      }
+    }
+
+    function computeHeartPositions() {
+      heartPositions = [];
+      const scale = HEART_SIZE * minDim / 32;
+      for (let i = 0; i < NUM_LETTERS; i++) {
+        const t = (i / NUM_LETTERS) * Math.PI * 2;
+        const x = 16 * Math.pow(Math.sin(t), 3);
+        const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+        heartPositions.push({
+          x: x * scale,
+          y: -y * scale,
+          angle: t + Math.PI/2 + Math.random() * 0.7 // Ángulo aleatorio para dinamismo
+        });
+      }
+    }
+
+    function initLetters() {
+      letters = [];
+      for (let i = 0; i < NUM_LETTERS; i++) {
+        letters.push({
+          x: 0, y: 0, angle: 0,
+          color: LETTER_COLORS[i % LETTER_COLORS.length],
+          size: Math.random() * 0.012 * minDim + 0.018 * minDim, // Variación de tamaño
+        });
+      }
+    }
+
+    function updateLetterPositions() {
+      for (let i = 0; i < NUM_LETTERS; i++) {
+        let from = galaxyPositions[i];
+        let to = heartPositions[i];
+        let t = animationProgress;
+        if (animatingToHeart) t = animationProgress;
+        else if (animatingToGalaxy) t = 1 - animationProgress;
+        else t = inHeart ? 1 : 0;
+        letters[i].x = lerp(from.x, to.x, t);
+        letters[i].y = lerp(from.y, to.y, t);
+        letters[i].angle = lerpAngle(from.angle, to.angle, t);
+        letters[i].color = inHeart || animatingToHeart || animatingToGalaxy ? HEART_COLOR : LETTER_COLORS[i % LETTER_COLORS.length];
+      }
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+    function lerpAngle(a, b, t) {
+      let diff = b - a;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      return a + diff * t;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(cx, cy);
+      for (let i = 0; i < NUM_LETTERS; i++) {
+        const l = letters[i];
+        ctx.save();
+        ctx.translate(l.x, l.y);
+        ctx.rotate(l.angle);
+        ctx.font = `${l.size}px Arial Black, Arial, sans-serif`;
+        ctx.fillStyle = l.color;
+        ctx.shadowColor = l.color === HEART_COLOR ? '#fff' : '#ff69b4';
+        ctx.shadowBlur = l.color === HEART_COLOR ? 10 : 6;
+        ctx.globalAlpha = 0.85;
+        ctx.fillText(LETTER, 0, 0);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function animate() {
+      if (!dragging && !inHeart && !animatingToHeart && !animatingToGalaxy) {
+        galaxyAngle += 0.0025;
+        computeGalaxyPositions();
+      }
+      if (animatingToHeart || animatingToGalaxy) {
+        animationProgress += 0.08;
+        if (animationProgress >= 1) {
+          animationProgress = 1;
+          if (animatingToHeart) {
+            inHeart = true;
+            animatingToHeart = false;
+            teAmoDiv.style.opacity = 1;
+          } else if (animatingToGalaxy) {
+            inHeart = false;
+            animatingToGalaxy = false;
+            teAmoDiv.style.opacity = 0;
+          }
+        }
+      }
+      updateLetterPositions();
+      draw();
+      requestAnimationFrame(animate);
+    }
+
+    // Interacción
+    function pointerDown(e) {
+      if (animatingToHeart || animatingToGalaxy) return;
+      dragging = true;
+      lastPointer = getPointer(e);
+      lastAngle = getPointerAngle(lastPointer.x, lastPointer.y);
+    }
+    function pointerMove(e) {
+      if (!dragging) return;
+      const p = getPointer(e);
+      const angle = getPointerAngle(p.x, p.y);
+      const delta = angle - lastAngle;
+      galaxyAngle += delta;
+      computeGalaxyPositions();
+      lastAngle = angle;
+    }
+    function pointerUp(e) {
+      dragging = false;
+    }
+    function pointerClick(e) {
+      if (animatingToHeart || animatingToGalaxy) return;
+      const p = getPointer(e, true);
+      const dist = Math.hypot(p.x, p.y);
+      if (!inHeart && dist < minDim * 0.13) {
+        animatingToHeart = true;
+        animationProgress = 0;
+      } else if (inHeart) {
+        animatingToGalaxy = true;
+        animationProgress = 0;
+      }
+    }
+    function getPointer(e, relative=false) {
+      let x, y;
+      if (e.touches && e.touches.length > 0) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+      } else {
+        x = e.clientX;
+        y = e.clientY;
+      }
+      if (relative) {
+        return {x: x - cx, y: y - cy};
+      } else {
+        return {x, y};
+      }
+    }
+    function getPointerAngle(x, y) {
+      return Math.atan2(y - cy, x - cx);
+    }
+
+    // Eventos
+    window.addEventListener('resize', resize);
+    canvas.addEventListener('mousedown', pointerDown);
+    canvas.addEventListener('mousemove', pointerMove);
+    window.addEventListener('mouseup', pointerUp);
+    canvas.addEventListener('touchstart', pointerDown, {passive: false});
+    canvas.addEventListener('touchmove', pointerMove, {passive: false});
+    window.addEventListener('touchend', pointerUp);
+    canvas.addEventListener('click', pointerClick);
+    canvas.addEventListener('touchend', function(e) {
+      if (e.touches && e.touches.length === 0) pointerClick(e);
+    });
+
+    // Inicialización
+    resize();
+    animate();
+  </script>
+</body>
+</html> 
