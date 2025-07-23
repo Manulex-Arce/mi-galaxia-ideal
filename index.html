@@ -41,6 +41,26 @@
       z-index: 10;
       user-select: none;
     }
+    #hint {
+      position: fixed;
+      left: 50%;
+      bottom: 2vw;
+      transform: translateX(-50%);
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 1.3em;
+      opacity: 0.18;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+      user-select: none;
+      animation: hint-pulse 1.6s infinite;
+      z-index: 20;
+    }
+    @keyframes hint-pulse {
+      0% { opacity: 0.13; }
+      50% { opacity: 0.32; }
+      100% { opacity: 0.13; }
+    }
     @media (max-width: 600px) {
       #te-amo {
         font-size: 12vw;
@@ -51,6 +71,7 @@
 <body>
   <canvas id="galaxy-canvas"></canvas>
   <div id="te-amo">TE AMO</div>
+  <div id="hint">clic en el centro</div>
   <script>
     // Configuración
     const NUM_LETTERS = 120;
@@ -170,12 +191,18 @@
       ctx.clearRect(0, 0, width, height);
       ctx.save();
       ctx.translate(cx, cy);
+      // Latido del corazón: escala extra si el corazón está formado
+      let heartPulse = 1;
+      if (inHeart && !animatingToGalaxy && !animatingToHeart) {
+        const now = performance.now() / 1000;
+        heartPulse = 1 + 0.10 * Math.sin(now * 2 * Math.PI * 1); // 1 vez por segundo, 10% de escala
+      }
       for (let i = 0; i < NUM_LETTERS; i++) {
         const l = letters[i];
         ctx.save();
         ctx.translate(l.x, l.y);
         ctx.rotate(l.angle);
-        ctx.font = `${l.size}px Arial Black, Arial, sans-serif`;
+        ctx.font = `${l.size * (inHeart ? heartPulse : 1)}px Arial Black, Arial, sans-serif`;
         ctx.fillStyle = l.color;
         ctx.shadowColor = l.color === HEART_COLOR ? '#fff' : '#ff69b4';
         ctx.shadowBlur = l.color === HEART_COLOR ? 10 : 6;
