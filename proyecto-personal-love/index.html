@@ -53,13 +53,13 @@
   <div id="te-amo">TE AMO</div>
   <script>
     // Configuración
-    const NUM_LETTERS = 220;
+    const NUM_LETTERS = 120;
     const GALAXY_RADIUS = 0.38; // relativo al menor lado
     const GALAXY_ARMS = 2.5;
     const GALAXY_SPIRAL = 1.7;
     const HEART_SIZE = 0.38; // relativo al menor lado
     const LETTER = 'punchis';
-    const LETTER_COLOR = '#fff';
+    const LETTER_COLORS = ['#fff', '#ffb6d5', '#ff69b4', '#ffe4f7'];
     const HEART_COLOR = '#ff69b4';
     const FPS = 60;
 
@@ -91,52 +91,42 @@
       canvas.height = height;
       computeGalaxyPositions();
       computeHeartPositions();
+      initLetters();
+      updateLetterPositions();
     }
 
     function computeGalaxyPositions() {
       galaxyPositions = [];
+      const flatten = 0.45;
+      const inclination = Math.PI / 5;
       for (let i = 0; i < NUM_LETTERS; i++) {
         const t = i / NUM_LETTERS;
         const angle = t * Math.PI * 2 * GALAXY_ARMS + t * GALAXY_SPIRAL * Math.PI * 2;
         const radius = t * GALAXY_RADIUS * minDim;
+        let x = Math.cos(angle + galaxyAngle) * radius;
+        let y = Math.sin(angle + galaxyAngle) * radius;
+        y *= flatten;
+        let y3d = y * Math.cos(inclination);
         galaxyPositions.push({
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius,
+          x: x,
+          y: y3d,
           angle: angle + Math.PI/2
         });
       }
     }
 
-    // Heart parametric equation
-    function heartXY(t) {
-      // t in [0, 2PI]
-      const x = 16 * Math.pow(Math.sin(t), 3);
-      const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-      return {x, y};
-    }
-
     function computeHeartPositions() {
       heartPositions = [];
-      // Llenar el corazón con letras
-      const points = [];
-      const steps = NUM_LETTERS * 2;
-      for (let i = 0; i < steps; i++) {
-        const t = (i / steps) * Math.PI * 2;
-        const {x, y} = heartXY(t);
-        points.push({x, y});
-      }
-      // Rellenar el corazón con letras en "capas"
-      let count = 0;
-      let scale = HEART_SIZE * minDim / 32;
-      for (let r = 1; r >= 0.3 && count < NUM_LETTERS; r -= 0.08) {
-        for (let i = 0; i < points.length && count < NUM_LETTERS; i++) {
-          heartPositions.push({
-            x: points[i].x * scale * r,
-            y: -points[i].y * scale * r,
-            angle: Math.atan2(-points[i].y, points[i].x)
-          });
-          count++;
-        }
+      const scale = HEART_SIZE * minDim / 32;
+      for (let i = 0; i < NUM_LETTERS; i++) {
+        const t = (i / NUM_LETTERS) * Math.PI * 2;
+        const x = 16 * Math.pow(Math.sin(t), 3);
+        const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+        heartPositions.push({
+          x: x * scale,
+          y: -y * scale,
+          angle: t + Math.PI/2 + Math.random() * 0.7 // Ángulo aleatorio para dinamismo
+        });
       }
     }
 
@@ -144,10 +134,9 @@
       letters = [];
       for (let i = 0; i < NUM_LETTERS; i++) {
         letters.push({
-          // Interpolated position between galaxy and heart
           x: 0, y: 0, angle: 0,
-          color: LETTER_COLOR,
-          size: Math.random() * 0.018 * minDim + 0.018 * minDim,
+          color: LETTER_COLORS[i % LETTER_COLORS.length],
+          size: Math.random() * 0.012 * minDim + 0.018 * minDim, // Variación de tamaño
         });
       }
     }
@@ -163,7 +152,7 @@
         letters[i].x = lerp(from.x, to.x, t);
         letters[i].y = lerp(from.y, to.y, t);
         letters[i].angle = lerpAngle(from.angle, to.angle, t);
-        letters[i].color = inHeart || animatingToHeart || animatingToGalaxy ? HEART_COLOR : LETTER_COLOR;
+        letters[i].color = inHeart || animatingToHeart || animatingToGalaxy ? HEART_COLOR : LETTER_COLORS[i % LETTER_COLORS.length];
       }
     }
 
@@ -171,7 +160,6 @@
       return a + (b - a) * t;
     }
     function lerpAngle(a, b, t) {
-      // Interpolación de ángulos
       let diff = b - a;
       while (diff > Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
@@ -182,7 +170,6 @@
       ctx.clearRect(0, 0, width, height);
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(galaxyAngle);
       for (let i = 0; i < NUM_LETTERS; i++) {
         const l = letters[i];
         ctx.save();
@@ -202,9 +189,10 @@
     function animate() {
       if (!dragging && !inHeart && !animatingToHeart && !animatingToGalaxy) {
         galaxyAngle += 0.0025;
+        computeGalaxyPositions();
       }
       if (animatingToHeart || animatingToGalaxy) {
-        animationProgress += 0.03;
+        animationProgress += 0.08;
         if (animationProgress >= 1) {
           animationProgress = 1;
           if (animatingToHeart) {
@@ -236,6 +224,7 @@
       const angle = getPointerAngle(p.x, p.y);
       const delta = angle - lastAngle;
       galaxyAngle += delta;
+      computeGalaxyPositions();
       lastAngle = angle;
     }
     function pointerUp(e) {
@@ -246,11 +235,9 @@
       const p = getPointer(e, true);
       const dist = Math.hypot(p.x, p.y);
       if (!inHeart && dist < minDim * 0.13) {
-        // Transformar a corazón
         animatingToHeart = true;
         animationProgress = 0;
       } else if (inHeart) {
-        // Volver a galaxia
         animatingToGalaxy = true;
         animationProgress = 0;
       }
@@ -275,11 +262,7 @@
     }
 
     // Eventos
-    window.addEventListener('resize', () => {
-      resize();
-      initLetters();
-      updateLetterPositions();
-    });
+    window.addEventListener('resize', resize);
     canvas.addEventListener('mousedown', pointerDown);
     canvas.addEventListener('mousemove', pointerMove);
     window.addEventListener('mouseup', pointerUp);
@@ -293,8 +276,6 @@
 
     // Inicialización
     resize();
-    initLetters();
-    updateLetterPositions();
     animate();
   </script>
 </body>
