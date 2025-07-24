@@ -73,6 +73,9 @@
   <canvas id="galaxy-canvas"></canvas>
   <div id="te-amo">TE AMO</div>
   <div id="hint">clic en el centro</div>
+   <!-- ... tu contenido ... -->
+   <audio id="bg-music" src="resourses/Until I Found You(editado).mp3" autoplay loop preload="auto"></audio>
+  
   <script>
     // Configuración
     const NUM_LETTERS = 120;
@@ -305,6 +308,16 @@
     // Inicialización
     resize();
     animate();
+
+
+    //reproducción de audio
+    document.addEventListener('click', function playMusicOnce() {
+    var audio = document.getElementById('bg-music');
+    if (audio && audio.paused) {
+      audio.play();
+    }
+    document.removeEventListener('click', playMusicOnce);
+  });
   </script>
 </body>
 </html> 
