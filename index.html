@@ -75,7 +75,7 @@
   <div id="hint">clic en el centro</div>
    <!-- ... tu contenido ... -->
    <audio id="bg-music" src="resourses/Until I Found You(editado).mp3" autoplay loop preload="auto"></audio>
-  
+
   <script>
     // Configuración
     const NUM_LETTERS = 120;
@@ -105,6 +105,18 @@
     const canvas = document.getElementById('galaxy-canvas');
     const ctx = canvas.getContext('2d');
     const teAmoDiv = document.getElementById('te-amo');
+
+
+    const FRASES = [
+  "TE AMO",
+  "TE ADORO",
+  "TE EXTRAÑO CON CADA RESPIRO",
+  "PUNCHIS POR SIEMPRE",
+  "Y",
+  "SIEMPRE TE AMARÉ"
+  
+];
+let fraseIndex = 0;
 
     function resize() {
       width = window.innerWidth;
@@ -227,10 +239,12 @@
         if (animationProgress >= 1) {
           animationProgress = 1;
           if (animatingToHeart) {
-            inHeart = true;
-            animatingToHeart = false;
-            teAmoDiv.style.opacity = 1;
-          } else if (animatingToGalaxy) {
+  inHeart = true;
+  animatingToHeart = false;
+  fraseIndex = (fraseIndex + 1) % FRASES.length;
+  teAmoDiv.textContent = FRASES[fraseIndex];
+  teAmoDiv.style.opacity = 1;
+} else if (animatingToGalaxy) {
             inHeart = false;
             animatingToGalaxy = false;
             teAmoDiv.style.opacity = 0;
@@ -310,13 +324,18 @@
     animate();
 
 
-    //reproducción de audio
-    document.addEventListener('click', function playMusicOnce() {
-    var audio = document.getElementById('bg-music');
-    if (audio && audio.paused) {
-      audio.play();
+    window.addEventListener('DOMContentLoaded', function() {
+    const audio = document.getElementById('bg-music');
+    if (audio) {
+      audio.volume = 0.5;
+      audio.play().catch(() => {
+        // Si falla, espera el primer clic
+        document.addEventListener('click', function playMusicOnce() {
+          audio.play();
+          document.removeEventListener('click', playMusicOnce);
+        });
+      });
     }
-    document.removeEventListener('click', playMusicOnce);
   });
   </script>
 </body>
