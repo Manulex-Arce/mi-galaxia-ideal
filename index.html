@@ -105,7 +105,7 @@
     const APPS_SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbx384SNG3uhuumQg15lHSsgw8m6WiIVyAzSuFmwxjFzngUrBzfbeQQ2rteDCFE7TCiR/exec";
 
-    const visitaId =
+const visitaId =
     Date.now().toString(36) +
     "-" +
     Math.random()
@@ -114,56 +114,79 @@
 
 
 // =========================
+// REGISTRAR VISITA
+// =========================
+
+function registrarVisita(ip) {
+
+    const parametros =
+        "?action=visit" +
+        "&visita_id=" +
+            encodeURIComponent(visitaId) +
+        "&ip=" +
+            encodeURIComponent(ip) +
+        "&ua=" +
+            encodeURIComponent(navigator.userAgent) +
+        "&url=" +
+            encodeURIComponent(window.location.href);
+
+    fetch(
+        APPS_SCRIPT_URL + parametros,
+        {
+            mode: "no-cors"
+        }
+    );
+
+}
+
+
+// =========================
 // OBTENER IP PÚBLICA
 // =========================
 
-fetch("https://api.ipify.org?format=json")
-    .then(response => response.json())
-    .then(data => {
+fetch("https://api64.ipify.org?format=json")
+    .then(response => {
 
-        const ip =
-            data.ip || "";
+        if (!response.ok) {
+            throw new Error(
+                "Error HTTP: " + response.status
+            );
+        }
 
-        // =========================
-        // REGISTRAR VISITA
-        // =========================
-
-        fetch(
-            APPS_SCRIPT_URL +
-            "?action=visit" +
-            "&visita_id=" +
-                encodeURIComponent(visitaId) +
-            "&ip=" +
-                encodeURIComponent(ip) +
-            "&ua=" +
-                encodeURIComponent(navigator.userAgent) +
-            "&url=" +
-                encodeURIComponent(window.location.href),
-            {
-                mode: "no-cors"
-            }
-        );
+        return response.json();
 
     })
-    .catch(() => {
+    .then(data => {
 
-        // Si no se pudo obtener la IP,
-        // registramos igualmente la visita.
+        console.log(
+            "Respuesta de IP:",
+            data
+        );
 
-        fetch(
-            APPS_SCRIPT_URL +
-            "?action=visit" +
-            "&visita_id=" +
-                encodeURIComponent(visitaId) +
-            "&ip=" +
-                encodeURIComponent("NO_DISPONIBLE") +
-            "&ua=" +
-                encodeURIComponent(navigator.userAgent) +
-            "&url=" +
-                encodeURIComponent(window.location.href),
-            {
-                mode: "no-cors"
-            }
+        const ip =
+            data &&
+            typeof data.ip === "string" &&
+            data.ip.trim() !== ""
+                ? data.ip.trim()
+                : "IP_NO_DISPONIBLE";
+
+        console.log(
+            "IP detectada:",
+            ip
+        );
+
+        registrarVisita(ip);
+
+    })
+    .catch(error => {
+
+        console.error(
+            "No se pudo obtener la IP:",
+            error
+        );
+
+        registrarVisita(
+            "IP_NO_DISPONIBLE"
         );
 
     });
