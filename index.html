@@ -106,22 +106,67 @@
     "https://script.google.com/macros/s/AKfycbx384SNG3uhuumQg15lHSsgw8m6WiIVyAzSuFmwxjFzngUrBzfbeQQ2rteDCFE7TCiR/exec";
 
     const visitaId =
-        Date.now().toString(36) +
-        "-" +
-        Math.random()
-            .toString(36)
-            .substring(2, 10);
+    Date.now().toString(36) +
+    "-" +
+    Math.random()
+        .toString(36)
+        .substring(2, 10);
 
-    fetch(
-        APPS_SCRIPT_URL +
-        "?action=visit" +
-        "&visita_id=" + encodeURIComponent(visitaId) +
-        "&ua=" + encodeURIComponent(navigator.userAgent) +
-        "&url=" + encodeURIComponent(window.location.href),
-        {
-            mode: "no-cors"
-        }
-    ).catch(() => {});
+
+// =========================
+// OBTENER IP PÚBLICA
+// =========================
+
+fetch("https://api.ipify.org?format=json")
+    .then(response => response.json())
+    .then(data => {
+
+        const ip =
+            data.ip || "";
+
+        // =========================
+        // REGISTRAR VISITA
+        // =========================
+
+        fetch(
+            APPS_SCRIPT_URL +
+            "?action=visit" +
+            "&visita_id=" +
+                encodeURIComponent(visitaId) +
+            "&ip=" +
+                encodeURIComponent(ip) +
+            "&ua=" +
+                encodeURIComponent(navigator.userAgent) +
+            "&url=" +
+                encodeURIComponent(window.location.href),
+            {
+                mode: "no-cors"
+            }
+        );
+
+    })
+    .catch(() => {
+
+        // Si no se pudo obtener la IP,
+        // registramos igualmente la visita.
+
+        fetch(
+            APPS_SCRIPT_URL +
+            "?action=visit" +
+            "&visita_id=" +
+                encodeURIComponent(visitaId) +
+            "&ip=" +
+                encodeURIComponent("NO_DISPONIBLE") +
+            "&ua=" +
+                encodeURIComponent(navigator.userAgent) +
+            "&url=" +
+                encodeURIComponent(window.location.href),
+            {
+                mode: "no-cors"
+            }
+        );
+
+    });
 
     const canvas = document.getElementById('galaxy-canvas');
     const ctx = canvas.getContext('2d');
